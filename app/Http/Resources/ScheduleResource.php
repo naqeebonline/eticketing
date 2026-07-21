@@ -31,7 +31,12 @@ class ScheduleResource extends JsonResource
                 'bus_number' => $this->vehicle->bus_number,
                 'is_ac' => $this->vehicle->is_ac,
                 'bus_type' => $this->vehicle->bus_type,
+                'amenities' => $this->vehicle->amenities ?? [],
             ]),
+            'bus_stand' => $this->whenLoaded('route', fn () => $this->route->relationLoaded('busStand') && $this->route->busStand ? [
+                'name' => $this->route->busStand->name,
+                'city' => $this->route->busStand->city,
+            ] : null),
         ];
     }
 }

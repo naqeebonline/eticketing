@@ -36,6 +36,10 @@ class BookingRepository implements BookingRepositoryInterface
             ->with(['user', 'schedule.route', 'schedule.vehicle', 'passengers'])
             ->withCount(['passengers as active_passengers_count' => fn ($q) => $q->whereNull('cancelled_at')]);
 
+        if (! empty($filters['user_id'])) {
+            $query->where('user_id', $filters['user_id']);
+        }
+
         if (! empty($filters['status'])) {
             $query->where('status', $filters['status']);
         }

@@ -24,9 +24,12 @@ class BookingController extends Controller
 
     public function index(Request $request): JsonResponse
     {
+        $filters = $request->only(['status', 'date_from', 'date_to', 'search']);
+        $filters['user_id'] = $request->user()->id;
+
         $bookings = $this->bookingRepository->paginate(
-            $request->only(['status', 'date_from', 'date_to', 'search']),
-            $request->integer('per_page', 15)
+            $filters,
+            $request->integer('per_page', 50)
         );
 
         return response()->json(BookingResource::collection($bookings)->response()->getData(true));
@@ -66,12 +69,16 @@ class BookingController extends Controller
         ], 201);
     }
 
-    public function show(string $uuid): JsonResponse
+    public function show(Request $request, string $uuid): JsonResponse
     {
         $booking = $this->bookingRepository->findByUuid($uuid);
 
         if (! $booking) {
             return response()->json(['message' => 'Booking not found.'], 404);
+        }
+
+        if ($booking->user_id !== $request->user()->id) {
+            return response()->json(['message' => 'Unauthorized.'], 403);
         }
 
         return response()->json(new BookingResource($booking));
@@ -83,6 +90,10 @@ class BookingController extends Controller
 
         if (! $booking) {
             return response()->json(['message' => 'Booking not found.'], 404);
+        }
+
+        if ($booking->user_id !== $request->user()->id) {
+            return response()->json(['message' => 'Unauthorized.'], 403);
         }
 
         $booking = $this->bookingService->cancelBooking($booking, $request->reason);
