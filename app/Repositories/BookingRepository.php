@@ -33,7 +33,7 @@ class BookingRepository implements BookingRepositoryInterface
     public function paginate(array $filters = [], int $perPage = 15): LengthAwarePaginator
     {
         $query = Booking::query()
-            ->with(['user', 'schedule.route', 'schedule.vehicle', 'passengers'])
+            ->with(['user', 'schedule.route', 'schedule.vehicle', 'passengers.seat'])
             ->withCount(['passengers as active_passengers_count' => fn ($q) => $q->whereNull('cancelled_at')]);
 
         if (! empty($filters['user_id'])) {
