@@ -107,7 +107,7 @@ class BookingService
                 $schedule,
                 $seatIds,
                 $options['user_id'] ?? auth()->id(),
-                session()->getId(),
+                $options['session_id'] ?? session()->getId(),
             );
 
             $subtotal = 0;

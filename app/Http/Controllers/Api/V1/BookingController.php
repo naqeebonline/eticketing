@@ -49,7 +49,8 @@ class BookingController extends Controller
             [
                 'user_id' => $request->user()?->id,
                 'coupon_code' => $request->coupon_code,
-                'source' => 'api',
+                'source' => 'mobile',
+                'session_id' => $request->header('X-Session-ID'),
             ]
         );
 
@@ -65,7 +66,11 @@ class BookingController extends Controller
 
         return response()->json([
             'message' => 'Booking created successfully.',
-            'data' => new BookingResource($booking->load('passengers.seat', 'schedule.route')),
+            'data' => new BookingResource($booking->load([
+                'passengers.seat',
+                'schedule.route',
+                'schedule.vehicle',
+            ])),
         ], 201);
     }
 
@@ -81,7 +86,11 @@ class BookingController extends Controller
             return response()->json(['message' => 'Unauthorized.'], 403);
         }
 
-        return response()->json(new BookingResource($booking));
+        return response()->json(new BookingResource($booking->load([
+            'passengers.seat',
+            'schedule.route',
+            'schedule.vehicle',
+        ])));
     }
 
     public function cancel(Request $request, string $uuid): JsonResponse
