@@ -19,7 +19,7 @@ class ScheduleRepository implements ScheduleRepositoryInterface
 
     public function searchAvailable(string $from, string $to, string $date): Collection
     {
-        return Schedule::with(['route.busStand', 'vehicle'])
+        $query = Schedule::with(['route.busStand', 'vehicle'])
             ->whereHas('route', function ($q) use ($from, $to) {
                 $q->where('departure_city', 'like', "%{$from}%")
                     ->where('destination_city', 'like', "%{$to}%")
@@ -27,9 +27,14 @@ class ScheduleRepository implements ScheduleRepositoryInterface
             })
             ->where('departure_date', $date)
             ->where('status', 'scheduled')
-            ->where('available_seats', '>', 0)
-            ->orderBy('departure_time')
-            ->get();
+            ->where('available_seats', '>', 0);
+
+        // Hide buses whose departure time has already passed (same-day searches).
+        if ($date === now()->toDateString()) {
+            $query->where('departure_time', '>', now()->format('H:i:s'));
+        }
+
+        return $query->orderBy('departure_time')->get();
     }
 
     public function paginate(array $filters = [], int $perPage = 15): LengthAwarePaginator
