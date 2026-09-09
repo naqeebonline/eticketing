@@ -42,15 +42,27 @@ class BookingController extends Controller
             'search',
             'vehicle_id',
             'route_id',
-            'departure_date',
         ]);
 
         if ($standIds !== null) {
             $filters['bus_stand_ids'] = $standIds;
         }
 
-        if (empty($filters['departure_date']) && ! request()->hasAny(['status', 'payment_status', 'search', 'vehicle_id', 'route_id'])) {
-            $filters['departure_date'] = today()->toDateString();
+        $dateFrom = request('date_from');
+        $dateTo = request('date_to');
+        $hasDateRange = filled($dateFrom) || filled($dateTo);
+
+        if ($hasDateRange) {
+            // Custom / archive range on trip departure dates
+            if (filled($dateFrom)) {
+                $filters['departure_from'] = $dateFrom;
+            }
+            if (filled($dateTo)) {
+                $filters['departure_to'] = $dateTo;
+            }
+        } else {
+            // Default: today + upcoming only (past trips stay archived)
+            $filters['upcoming_only'] = true;
         }
 
         $bookings = $this->bookingRepository->paginate($filters);
@@ -65,8 +77,17 @@ class BookingController extends Controller
 
         $vehicles = $vehiclesQuery->get(['id', 'name', 'bus_number']);
         $routes = $routesQuery->get(['id', 'name', 'departure_city', 'destination_city']);
+        $showingArchive = $hasDateRange;
 
-        return view('admin.bookings.index', compact('bookings', 'vehicles', 'routes', 'filters'));
+        return view('admin.bookings.index', compact(
+            'bookings',
+            'vehicles',
+            'routes',
+            'filters',
+            'showingArchive',
+            'dateFrom',
+            'dateTo',
+        ));
     }
 
     public function create(): View

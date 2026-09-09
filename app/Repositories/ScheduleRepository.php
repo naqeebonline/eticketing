@@ -26,8 +26,7 @@ class ScheduleRepository implements ScheduleRepositoryInterface
                     ->where('is_active', true);
             })
             ->where('departure_date', $date)
-            ->where('status', 'scheduled')
-            ->where('available_seats', '>', 0)
+            ->bookable()
             ->orderBy('departure_time')
             ->get();
     }

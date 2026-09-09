@@ -60,6 +60,18 @@ class BookingRepository implements BookingRepositoryInterface
             $query->whereHas('schedule', fn ($q) => $q->whereDate('departure_date', $filters['departure_date']));
         }
 
+        if (! empty($filters['upcoming_only'])) {
+            $query->whereHas('schedule', fn ($q) => $q->whereDate('departure_date', '>=', today()));
+        }
+
+        if (! empty($filters['departure_from'])) {
+            $query->whereHas('schedule', fn ($q) => $q->whereDate('departure_date', '>=', $filters['departure_from']));
+        }
+
+        if (! empty($filters['departure_to'])) {
+            $query->whereHas('schedule', fn ($q) => $q->whereDate('departure_date', '<=', $filters['departure_to']));
+        }
+
         if (! empty($filters['date_from'])) {
             $query->whereDate('created_at', '>=', $filters['date_from']);
         }

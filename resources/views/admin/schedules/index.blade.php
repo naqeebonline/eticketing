@@ -14,6 +14,47 @@
 </x-ui.page-header>
 
 <div class="admin-panel admin-table">
+    <x-admin.filter-bar>
+        @php
+            $vehicleOptions = $vehicles->map(fn ($vehicle) => [
+                'value' => (string) $vehicle->id,
+                'label' => $vehicle->bus_number
+                    ? "{$vehicle->name} · {$vehicle->bus_number}"
+                    : $vehicle->name,
+            ])->values()->all();
+
+            $routeOptions = $routes->map(fn ($route) => [
+                'value' => (string) $route->id,
+                'label' => "{$route->departure_city} → {$route->destination_city}",
+            ])->values()->all();
+        @endphp
+
+        <x-ui.searchable-select
+            name="vehicle_id"
+            label="Bus / Vehicle"
+            placeholder="All buses"
+            :options="$vehicleOptions"
+            :value="request('vehicle_id', '')"
+        />
+
+        <x-ui.searchable-select
+            name="route_id"
+            label="Route"
+            placeholder="All routes"
+            :options="$routeOptions"
+            :value="request('route_id', '')"
+        />
+
+        <div>
+            <label class="form-label">Records</label>
+            <select name="per_page" class="input-field min-w-[6rem]">
+                @foreach([10, 15, 25, 50, 100] as $size)
+                <option value="{{ $size }}" @selected((int) ($perPage ?? 15) === $size)>{{ $size }}</option>
+                @endforeach
+            </select>
+        </div>
+    </x-admin.filter-bar>
+
     <div class="table-wrap border-0 rounded-none shadow-none">
         <table class="table-modern">
             <thead>
