@@ -19,16 +19,27 @@ class ScheduleRepository implements ScheduleRepositoryInterface
 
     public function searchAvailable(string $from, string $to, string $date): Collection
     {
-        return Schedule::with(['route.busStand', 'vehicle'])
+        $query = Schedule::with(['route.busStand', 'vehicle'])
             ->whereHas('route', function ($q) use ($from, $to) {
                 $q->where('departure_city', 'like', "%{$from}%")
                     ->where('destination_city', 'like', "%{$to}%")
                     ->where('is_active', true);
             })
-            ->where('departure_date', $date)
-            ->bookable()
-            ->orderBy('departure_time')
-            ->get();
+            ->whereDate('departure_date', $date)
+            ->where('status', 'scheduled')
+            ->where('available_seats', '>', 0);
+
+        // Past departure filter: only for the current calendar day (Asia/Karachi).
+        // Tomorrow and later dates are returned in full — no time filter.
+        $tz = 'Asia/Karachi';
+        $searchDate = Carbon::parse($date, $tz)->toDateString();
+        $today = now($tz)->toDateString();
+
+        if ($searchDate === $today) {
+            $query->where('departure_time', '>', now($tz)->format('H:i:s'));
+        }
+
+        return $query->orderBy('departure_time')->get();
     }
 
     public function paginate(array $filters = [], int $perPage = 15): LengthAwarePaginator
