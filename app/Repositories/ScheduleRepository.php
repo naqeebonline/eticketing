@@ -25,13 +25,18 @@ class ScheduleRepository implements ScheduleRepositoryInterface
                     ->where('destination_city', 'like', "%{$to}%")
                     ->where('is_active', true);
             })
-            ->where('departure_date', $date)
+            ->whereDate('departure_date', $date)
             ->where('status', 'scheduled')
             ->where('available_seats', '>', 0);
 
-        // Hide buses whose departure time has already passed (same-day searches).
-        if ($date === now()->toDateString()) {
-            $query->where('departure_time', '>', now()->format('H:i:s'));
+        // Past departure filter: only for the current calendar day (Asia/Karachi).
+        // Tomorrow and later dates are returned in full — no time filter.
+        $tz = 'Asia/Karachi';
+        $searchDate = Carbon::parse($date, $tz)->toDateString();
+        $today = now($tz)->toDateString();
+
+        if ($searchDate === $today) {
+            $query->where('departure_time', '>', now($tz)->format('H:i:s'));
         }
 
         return $query->orderBy('departure_time')->get();
