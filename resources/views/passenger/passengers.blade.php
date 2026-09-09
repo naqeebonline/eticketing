@@ -56,14 +56,41 @@
                         <div class="sm:col-span-2">
                             <label class="form-label">Full name</label>
                             <input type="text" name="full_name" required class="input-field" placeholder="As on CNIC" value="{{ old('full_name') }}">
+                            @error('full_name')<p class="form-error">{{ $message }}</p>@enderror
                         </div>
                         <div>
                             <label class="form-label">CNIC</label>
-                            <input type="text" name="cnic" required class="input-field" placeholder="35202-1234567-1" value="{{ old('cnic') }}">
+                            <input
+                                type="text"
+                                name="cnic"
+                                required
+                                inputmode="numeric"
+                                maxlength="13"
+                                pattern="[0-9]{13}"
+                                class="input-field"
+                                placeholder="3520212345671"
+                                value="{{ old('cnic') }}"
+                                title="Enter 13-digit CNIC without dashes"
+                            >
+                            <p class="form-hint">Exactly 13 digits (without dashes)</p>
+                            @error('cnic')<p class="form-error">{{ $message }}</p>@enderror
                         </div>
                         <div>
                             <label class="form-label">Phone</label>
-                            <input type="text" name="phone" class="input-field" placeholder="03XX XXXXXXX" value="{{ old('phone') }}">
+                            <input
+                                type="text"
+                                name="phone"
+                                required
+                                inputmode="numeric"
+                                maxlength="11"
+                                pattern="03[0-9]{9}"
+                                class="input-field"
+                                placeholder="03001234567"
+                                value="{{ old('phone') }}"
+                                title="Must start with 03 and be 11 digits"
+                            >
+                            <p class="form-hint">Must start with 03 · 11 digits</p>
+                            @error('phone')<p class="form-error">{{ $message }}</p>@enderror
                         </div>
                     </div>
                 </div>

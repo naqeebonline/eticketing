@@ -119,7 +119,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'terminal_admin'])->
 Route::prefix('admin')->name('admin.')->middleware(['auth', 'bus_stand_admin'])->group(function () {
     Route::get('my-bus-stand', [BusStandController::class, 'myStand'])->name('bus-stands.my');
 
-    Route::resource('vehicles', VehicleController::class);
+    Route::resource('vehicles', VehicleController::class)->except(['destroy']);
     Route::resource('drivers', DriverController::class)->except(['show', 'destroy']);
     Route::get('schedule-plans/{weeklySchedulePlan}/edit', [ScheduleController::class, 'editPlan'])->name('schedules.plan.edit');
     Route::put('schedule-plans/{weeklySchedulePlan}', [ScheduleController::class, 'updatePlan'])->name('schedules.plan.update');

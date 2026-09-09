@@ -20,6 +20,7 @@ export function scheduleForm(config) {
         fare: config.fare ?? '',
         weekdays: config.initialWeekdays || {},
         weekdayRows: WEEKDAY_ROWS,
+        copyFromDay: '',
         departureDate: config.departureDate || '',
         departureTime: config.departureTime || '',
         arrivalTime: config.arrivalTime || '',
@@ -50,6 +51,10 @@ export function scheduleForm(config) {
 
         get activeDayCount() {
             return WEEKDAY_ROWS.filter((day) => this.weekdays[day.value]?.departure_time).length;
+        },
+
+        get filledDayOptions() {
+            return WEEKDAY_ROWS.filter((day) => this.weekdays[day.value]?.departure_time);
         },
 
         get schedulePreview() {
@@ -90,6 +95,11 @@ export function scheduleForm(config) {
                 } else if (this.vehicleId) {
                     this.applyVehicleDefaultDriver();
                 }
+
+                const firstFilled = this.filledDayOptions[0];
+                if (firstFilled) {
+                    this.copyFromDay = String(firstFilled.value);
+                }
             });
 
             if (this.departureTime) {
@@ -127,10 +137,108 @@ export function scheduleForm(config) {
 
         onDayTimeChange(dayOfWeek) {
             this.syncArrivalForDay(dayOfWeek);
+            if (!this.copyFromDay && this.weekdays[dayOfWeek]?.departure_time) {
+                this.copyFromDay = String(dayOfWeek);
+            }
         },
 
         clearDay(dayOfWeek) {
             this.weekdays[dayOfWeek] = { departure_time: '', arrival_time: '' };
+            if (String(this.copyFromDay) === String(dayOfWeek)) {
+                const next = this.filledDayOptions[0];
+                this.copyFromDay = next ? String(next.value) : '';
+            }
+        },
+
+        clearAllDays() {
+            WEEKDAY_ROWS.forEach((day) => {
+                this.weekdays[day.value] = { departure_time: '', arrival_time: '' };
+            });
+            this.copyFromDay = '';
+        },
+
+        dayTimes(dayOfWeek) {
+            const slot = this.weekdays[dayOfWeek];
+
+            return {
+                departure_time: slot?.departure_time || '',
+                arrival_time: slot?.arrival_time || '',
+            };
+        },
+
+        applyTimesToDay(targetDay, times) {
+            this.weekdays[targetDay] = {
+                departure_time: times.departure_time,
+                arrival_time: times.arrival_time,
+            };
+
+            if (!times.arrival_time && times.departure_time) {
+                this.syncArrivalForDay(targetDay);
+            }
+        },
+
+        copyDayToNext(dayOfWeek) {
+            const times = this.dayTimes(dayOfWeek);
+            if (!times.departure_time) {
+                return;
+            }
+
+            const nextDay = dayOfWeek === 7 ? 1 : dayOfWeek + 1;
+            this.applyTimesToDay(nextDay, times);
+            this.copyFromDay = String(dayOfWeek);
+        },
+
+        copyDayToTargets(sourceDay, targets) {
+            const times = this.dayTimes(sourceDay);
+            if (!times.departure_time) {
+                return;
+            }
+
+            targets.forEach((target) => {
+                if (Number(target) === Number(sourceDay)) {
+                    return;
+                }
+                this.applyTimesToDay(Number(target), times);
+            });
+        },
+
+        copyToNextFromSelected() {
+            const source = Number(this.copyFromDay);
+            if (!source) {
+                return;
+            }
+            this.copyDayToNext(source);
+        },
+
+        copyToEmptyDays() {
+            const source = Number(this.copyFromDay);
+            if (!source || !this.weekdays[source]?.departure_time) {
+                return;
+            }
+
+            const targets = WEEKDAY_ROWS
+                .filter((day) => day.value !== source && !this.weekdays[day.value]?.departure_time)
+                .map((day) => day.value);
+
+            this.copyDayToTargets(source, targets);
+        },
+
+        copyToWeekdays() {
+            const source = Number(this.copyFromDay);
+            if (!source || !this.weekdays[source]?.departure_time) {
+                return;
+            }
+
+            this.copyDayToTargets(source, [1, 2, 3, 4, 5]);
+        },
+
+        copyToAllDays() {
+            const source = Number(this.copyFromDay);
+            if (!source || !this.weekdays[source]?.departure_time) {
+                return;
+            }
+
+            this.copyDayToTargets(source, [1, 2, 3, 4, 5, 6, 7]);
         },
 
         syncArrivalForDay(dayOfWeek) {

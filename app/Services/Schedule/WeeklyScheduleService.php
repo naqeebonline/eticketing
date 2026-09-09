@@ -190,7 +190,10 @@ class WeeklyScheduleService
         return $active;
     }
 
-    public function queryForUser(User $user)
+    /**
+     * @param  array{vehicle_id?: mixed, route_id?: mixed}  $filters
+     */
+    public function queryForUser(User $user, array $filters = [])
     {
         $query = WeeklySchedulePlan::query()
             ->with(['route.busStand', 'vehicle', 'driver.user', 'days'])
@@ -201,6 +204,14 @@ class WeeklyScheduleService
 
         if ($standIds !== null) {
             $query->whereHas('route', fn ($q) => $q->whereIn('bus_stand_id', $standIds));
+        }
+
+        if (! empty($filters['vehicle_id'])) {
+            $query->where('vehicle_id', (int) $filters['vehicle_id']);
+        }
+
+        if (! empty($filters['route_id'])) {
+            $query->where('route_id', (int) $filters['route_id']);
         }
 
         return $query;

@@ -137,13 +137,24 @@ class BookingFlowController extends Controller
             return redirect()->route('book.seats', $schedule);
         }
 
+        $request->merge([
+            'cnic' => preg_replace('/\D+/', '', (string) $request->input('cnic', '')),
+            'phone' => preg_replace('/\D+/', '', (string) $request->input('phone', '')),
+        ]);
+
         $validated = $request->validate([
             'full_name' => 'required|string|max:255',
-            'cnic' => 'required|string|max:20',
-            'phone' => 'nullable|string|max:20',
+            'cnic' => ['required', 'digits:13'],
+            'phone' => ['required', 'digits:11', 'regex:/^03\d{9}$/'],
             'male_count' => 'required|integer|min:0',
             'female_count' => 'required|integer|min:0',
             'child_count' => 'required|integer|min:0',
+        ], [
+            'cnic.required' => 'CNIC is required.',
+            'cnic.digits' => 'CNIC must be exactly 13 digits.',
+            'phone.required' => 'Phone number is required.',
+            'phone.digits' => 'Phone number must be exactly 11 digits.',
+            'phone.regex' => 'Phone number must start with 03 (e.g. 03001234567).',
         ]);
 
         $travelerTotal = $validated['male_count'] + $validated['female_count'] + $validated['child_count'];
@@ -166,7 +177,7 @@ class BookingFlowController extends Controller
                 [
                     'full_name' => $validated['full_name'],
                     'cnic' => $validated['cnic'],
-                    'phone' => $validated['phone'] ?? null,
+                    'phone' => $validated['phone'],
                 ],
                 $validated['male_count'],
                 $validated['female_count'],

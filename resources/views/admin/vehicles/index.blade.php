@@ -28,6 +28,7 @@
                     <th>Stand</th>
                     <th>Seats</th>
                     <th>Status</th>
+                    <th class="text-right">Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -77,9 +78,12 @@
                     <td class="text-sm">{{ $vehicle->busStand->name ?? '—' }}</td>
                     <td><span class="rounded-lg bg-slate-100 px-2 py-1 text-xs font-bold tabular-nums dark:bg-slate-800">{{ $vehicle->total_seats }}</span></td>
                     <td><x-ui.badge :variant="$vehicle->is_active ? 'success' : 'neutral'">{{ $vehicle->is_active ? 'Active' : 'Inactive' }}</x-ui.badge></td>
+                    <td class="text-right">
+                        <a href="{{ url('/admin/vehicles/'.$vehicle->uuid.'/edit') }}" class="admin-row-action">Edit</a>
+                    </td>
                 </tr>
                 @empty
-                <tr><td colspan="7">
+                <tr><td colspan="8">
                     <x-ui.empty-state title="No vehicles yet" description="Register your first bus with driver, owner, and seat layout.">
                         <x-slot:action><x-ui.button href="{{ route('admin.vehicles.create') }}">Add vehicle</x-ui.button></x-slot:action>
                     </x-ui.empty-state>

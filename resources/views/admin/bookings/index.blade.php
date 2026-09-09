@@ -5,10 +5,12 @@
 
 @section('content')
 @php
-    $departureDate = request('departure_date', $filters['departure_date'] ?? today()->format('Y-m-d'));
+    $dateFrom = $dateFrom ?? request('date_from');
+    $dateTo = $dateTo ?? request('date_to');
+    $showingArchive = $showingArchive ?? (filled($dateFrom) || filled($dateTo));
 @endphp
 
-<x-ui.page-header title="Bookings" subtitle="Bus-wise reservations — filter by vehicle, route, aur departure date">
+<x-ui.page-header title="Bookings" subtitle="By default today & upcoming trips — set a date range to load archive">
     <x-slot:actions>
         <x-ui.button href="{{ route('admin.bookings.create') }}">
             <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
@@ -19,31 +21,43 @@
 
 <div class="admin-panel admin-table">
     <x-admin.filter-bar>
+        @php
+            $vehicleOptions = $vehicles->map(fn ($vehicle) => [
+                'value' => (string) $vehicle->id,
+                'label' => $vehicle->bus_number
+                    ? "{$vehicle->name} · {$vehicle->bus_number}"
+                    : $vehicle->name,
+            ])->values()->all();
+
+            $routeOptions = $routes->map(fn ($route) => [
+                'value' => (string) $route->id,
+                'label' => "{$route->departure_city} → {$route->destination_city}",
+            ])->values()->all();
+        @endphp
+
+        <x-ui.searchable-select
+            name="vehicle_id"
+            label="Bus / Vehicle"
+            placeholder="All buses"
+            :options="$vehicleOptions"
+            :value="request('vehicle_id', '')"
+        />
+
+        <x-ui.searchable-select
+            name="route_id"
+            label="Route"
+            placeholder="All routes"
+            :options="$routeOptions"
+            :value="request('route_id', '')"
+        />
+
         <div>
-            <label class="form-label">Bus / Vehicle</label>
-            <select name="vehicle_id" class="input-field min-w-[10rem]">
-                <option value="">All buses</option>
-                @foreach($vehicles as $vehicle)
-                <option value="{{ $vehicle->id }}" @selected((string) request('vehicle_id') === (string) $vehicle->id)>
-                    {{ $vehicle->name }}@if($vehicle->bus_number) · {{ $vehicle->bus_number }}@endif
-                </option>
-                @endforeach
-            </select>
+            <label class="form-label">From date</label>
+            <input type="date" name="date_from" value="{{ $dateFrom }}" class="input-field">
         </div>
         <div>
-            <label class="form-label">Route</label>
-            <select name="route_id" class="input-field min-w-[10rem]">
-                <option value="">All routes</option>
-                @foreach($routes as $route)
-                <option value="{{ $route->id }}" @selected((string) request('route_id') === (string) $route->id)>
-                    {{ $route->departure_city }} → {{ $route->destination_city }}
-                </option>
-                @endforeach
-            </select>
-        </div>
-        <div>
-            <label class="form-label">Departure date</label>
-            <input type="date" name="departure_date" value="{{ $departureDate }}" class="input-field">
+            <label class="form-label">To date</label>
+            <input type="date" name="date_to" value="{{ $dateTo }}" class="input-field">
         </div>
         <div>
             <label class="form-label">Status</label>
@@ -68,6 +82,25 @@
             <input type="search" name="search" value="{{ request('search') }}" placeholder="Booking #, name, CNIC" class="input-field min-w-[12rem]">
         </div>
     </x-admin.filter-bar>
+
+    <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-5 py-3 text-sm dark:border-slate-800">
+        @if($showingArchive)
+        <p class="font-medium text-amber-700 dark:text-amber-300">
+            Archive / custom range
+            @if($dateFrom || $dateTo)
+            <span class="font-normal text-slate-500">
+                ·
+                {{ $dateFrom ? \Carbon\Carbon::parse($dateFrom)->format('M d, Y') : '…' }}
+                →
+                {{ $dateTo ? \Carbon\Carbon::parse($dateTo)->format('M d, Y') : '…' }}
+            </span>
+            @endif
+        </p>
+        @else
+        <p class="font-medium text-emerald-700 dark:text-emerald-300">Showing today & upcoming departures</p>
+        @endif
+        <p class="text-slate-500">{{ $bookings->total() }} booking{{ $bookings->total() === 1 ? '' : 's' }}</p>
+    </div>
 
     <div class="table-wrap border-0 rounded-none shadow-none">
         <table class="table-modern">
@@ -155,7 +188,10 @@
                 </tr>
                 @empty
                 <tr><td colspan="7">
-                    <x-ui.empty-state title="No bookings found" description="Filters change karein ya nayi counter booking add karein.">
+                    <x-ui.empty-state
+                        title="No bookings found"
+                        :description="$showingArchive ? 'Is date range mein koi booking nahi — range change karein.' : 'Aaj aur upcoming trips ke liye abhi koi booking nahi. Archive ke liye date range set karein.'"
+                    >
                         <x-slot:action><x-ui.button href="{{ route('admin.bookings.create') }}">New booking</x-ui.button></x-slot:action>
                     </x-ui.empty-state>
                 </td></tr>

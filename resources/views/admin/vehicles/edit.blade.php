@@ -1,20 +1,33 @@
 @extends('layouts.admin')
-@section('title', 'Add Vehicle')
-@section('header', 'Add Vehicle')
-@section('breadcrumb', 'Register bus & seat map')
+@section('title', 'Edit Vehicle')
+@section('header', 'Edit Vehicle')
+@section('breadcrumb', 'Update bus details & seat map')
 
 @section('content')
+@php
+    $v = $vehicle;
+    $standId = old('bus_stand_id', $v->bus_stand_id);
+    $categoryId = old('vehicle_category_id', $v->vehicle_category_id);
+    $busType = old('bus_type', $v->bus_type);
+    $defaultConductors = $v->conductors->map(fn ($c) => [
+        'id' => $c->id,
+        'name' => $c->name ?? '',
+        'phone' => $c->phone ?? '',
+        'cnic' => $c->cnic ?? '',
+    ])->values()->all();
+@endphp
 <div class="admin-form-shell max-w-4xl" x-data="vehicleStaffForm()">
-    <x-ui.page-header title="New vehicle" subtitle="Bus details, staff assignments, and seat map" />
+    <x-ui.page-header title="Edit vehicle" subtitle="Update bus, owner, driver, conductors, and seat map — login users are not assigned here." />
 
-    <form method="POST" action="{{ route('admin.vehicles.store') }}" class="space-y-6">
+    <form method="POST" action="{{ url('/admin/vehicles/'.$vehicle->uuid) }}" class="space-y-6">
         @csrf
+        @method('PUT')
 
         <div class="card space-y-5">
             <h2 class="text-base font-semibold text-slate-900 dark:text-white">Bus stand & vehicle</h2>
             <x-ui.select label="Bus stand" name="bus_stand_id" required>
                 @foreach($busStands as $stand)
-                <option value="{{ $stand->id }}" @selected(old('bus_stand_id') == $stand->id)>
+                <option value="{{ $stand->id }}" @selected((string) $standId === (string) $stand->id)>
                     {{ $stand->name }}
                     @if($stand->terminal) — {{ $stand->terminal->name }} @endif
                     ({{ $stand->city }})
@@ -25,30 +38,37 @@
                 <x-ui.select label="Category" name="vehicle_category_id">
                     <option value="">— None —</option>
                     @foreach($categories as $cat)
-                    <option value="{{ $cat->id }}" @selected(old('vehicle_category_id') == $cat->id)>{{ $cat->name }}</option>
+                    <option value="{{ $cat->id }}" @selected((string) $categoryId === (string) $cat->id)>{{ $cat->name }}</option>
                     @endforeach
                 </x-ui.select>
                 <x-ui.select label="Bus type" name="bus_type" required>
-                    <option value="standard" @selected(old('bus_type') === 'standard')>Standard</option>
-                    <option value="luxury" @selected(old('bus_type') === 'luxury')>Luxury</option>
-                    <option value="sleeper" @selected(old('bus_type') === 'sleeper')>Sleeper</option>
+                    <option value="standard" @selected($busType === 'standard')>Standard</option>
+                    <option value="luxury" @selected($busType === 'luxury')>Luxury</option>
+                    <option value="sleeper" @selected($busType === 'sleeper')>Sleeper</option>
                 </x-ui.select>
             </div>
             <div class="grid gap-4 sm:grid-cols-2">
-                <x-ui.input label="Bus name" name="name" required placeholder="Metro Express" :value="old('name')" />
-                <x-ui.input label="Bus number" name="bus_number" required :value="old('bus_number')" />
-                <x-ui.input label="Registration number" name="registration_number" required class="sm:col-span-2" :value="old('registration_number')" />
+                <x-ui.input label="Bus name" name="name" required placeholder="Metro Express" :value="old('name', $v->name)" />
+                <x-ui.input label="Bus number" name="bus_number" required :value="old('bus_number', $v->bus_number)" />
+                <x-ui.input label="Registration number" name="registration_number" required class="sm:col-span-2" :value="old('registration_number', $v->registration_number)" />
                 <div>
                     <label class="form-label">Total seats</label>
                     <input type="number" name="total_seats" :value="totalSeats()" readonly class="input-field bg-slate-50 dark:bg-slate-900/50">
                     <p class="form-hint">Auto-calculated from seat map</p>
                 </div>
-                <x-ui.input label="Luxury type" name="luxury_type" hint="Optional" :value="old('luxury_type')" />
+                <x-ui.input label="Luxury type" name="luxury_type" hint="Optional" :value="old('luxury_type', $v->luxury_type)" />
             </div>
-            <label class="flex items-center gap-2">
-                <input type="checkbox" name="is_ac" value="1" @checked(old('is_ac', true)) class="rounded border-slate-300 text-primary-600">
-                <span class="text-sm font-medium">Air conditioned (AC)</span>
-            </label>
+            <div class="flex flex-wrap gap-4">
+                <label class="flex items-center gap-2">
+                    <input type="checkbox" name="is_ac" value="1" @checked(old('is_ac', $v->is_ac)) class="rounded border-slate-300 text-primary-600">
+                    <span class="text-sm font-medium">Air conditioned (AC)</span>
+                </label>
+                <label class="flex items-center gap-2">
+                    <input type="hidden" name="is_active" value="0">
+                    <input type="checkbox" name="is_active" value="1" @checked(old('is_active', $v->is_active)) class="rounded border-slate-300 text-primary-600">
+                    <span class="text-sm font-medium">Active</span>
+                </label>
+            </div>
         </div>
 
         <div class="card space-y-5 border-primary-200/60 dark:border-primary-800/60">
@@ -57,21 +77,21 @@
                 <p class="mt-1 text-sm text-slate-500">Company or individual who owns this bus (not the driver).</p>
             </div>
             <div class="grid gap-4 sm:grid-cols-2">
-                <x-ui.input label="Owner name" name="owner_name" required placeholder="Full name or company" :value="old('owner_name')" />
-                <x-ui.input label="Owner phone" name="owner_phone" type="tel" placeholder="03XX XXXXXXX" :value="old('owner_phone')" />
+                <x-ui.input label="Owner name" name="owner_name" required placeholder="Full name or company" :value="old('owner_name', $v->owner_name)" />
+                <x-ui.input label="Owner phone" name="owner_phone" type="tel" placeholder="03XX XXXXXXX" :value="old('owner_phone', $v->owner_phone)" />
             </div>
         </div>
 
         <div class="card space-y-5">
             <div>
                 <h2 class="text-base font-semibold text-slate-900 dark:text-white">Driver</h2>
-                <p class="mt-1 text-sm text-slate-500">Assigned driver for this vehicle — login user is not assigned from this screen.</p>
+                <p class="mt-1 text-sm text-slate-500">Driver contact details only — no login user is assigned from this screen.</p>
             </div>
             <div class="grid gap-4 sm:grid-cols-2">
-                <x-ui.input label="Driver name" name="driver_name" required :value="old('driver_name')" />
-                <x-ui.input label="Driver phone" name="driver_phone" type="tel" :value="old('driver_phone')" />
-                <x-ui.input label="Driver CNIC" name="driver_cnic" placeholder="Optional" :value="old('driver_cnic')" />
-                <x-ui.input label="License number" name="driver_license_number" hint="Optional — auto-generated if empty" :value="old('driver_license_number')" />
+                <x-ui.input label="Driver name" name="driver_name" required :value="old('driver_name', $v->driver?->name)" />
+                <x-ui.input label="Driver phone" name="driver_phone" type="tel" :value="old('driver_phone', $v->driver?->phone)" />
+                <x-ui.input label="Driver CNIC" name="driver_cnic" placeholder="Optional" :value="old('driver_cnic', $v->driver?->cnic)" />
+                <x-ui.input label="License number" name="driver_license_number" hint="Optional" :value="old('driver_license_number', $v->driver?->license_number)" />
             </div>
         </div>
 
@@ -79,7 +99,7 @@
             <div class="flex items-center justify-between gap-4">
                 <div>
                     <h2 class="text-base font-semibold text-slate-900 dark:text-white">Conductors <span class="text-xs font-medium text-slate-400">(optional)</span></h2>
-                    <p class="mt-1 text-sm text-slate-500">Optional — add conductors if needed. The first is marked primary.</p>
+                    <p class="mt-1 text-sm text-slate-500">Staff names and phones only — leave empty if none. Login accounts are not managed here.</p>
                 </div>
                 <button type="button" @click="addConductor()" class="btn-secondary btn-sm shrink-0">
                     <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
@@ -91,6 +111,7 @@
 
             <template x-for="(conductor, index) in conductors" :key="index">
                 <div class="rounded-xl border border-slate-200 bg-slate-50/50 p-4 dark:border-slate-700 dark:bg-slate-900/30">
+                    <input type="hidden" :name="'conductors[' + index + '][id]'" :value="conductor.id || ''">
                     <div class="mb-3 flex items-center justify-between">
                         <span class="text-sm font-semibold text-slate-700 dark:text-slate-300">
                             Conductor <span x-text="index + 1"></span>
@@ -135,7 +156,7 @@
                     <label for="normal_seat_fare" class="seat-fare-bar__label">Normal seat fare</label>
                     <div class="seat-fare-bar__input">
                         <span class="seat-fare-bar__prefix">PKR</span>
-                        <input id="normal_seat_fare" type="number" name="normal_seat_fare" step="0.01" min="0" required class="input-field" x-model.number="normalFare" value="{{ old('normal_seat_fare', 2000) }}">
+                        <input id="normal_seat_fare" type="number" name="normal_seat_fare" step="0.01" min="0" required class="input-field" x-model.number="normalFare" value="{{ old('normal_seat_fare', $seatData['normal_fare']) }}">
                     </div>
                     @error('normal_seat_fare')<p class="form-error mt-2">{{ $message }}</p>@enderror
                 </div>
@@ -143,7 +164,7 @@
                     <label for="luxury_seat_fare" class="seat-fare-bar__label">Luxury seat fare</label>
                     <div class="seat-fare-bar__input">
                         <span class="seat-fare-bar__prefix">PKR</span>
-                        <input id="luxury_seat_fare" type="number" name="luxury_seat_fare" step="0.01" min="0" required class="input-field" x-model.number="luxuryFare" value="{{ old('luxury_seat_fare', 3500) }}">
+                        <input id="luxury_seat_fare" type="number" name="luxury_seat_fare" step="0.01" min="0" required class="input-field" x-model.number="luxuryFare" value="{{ old('luxury_seat_fare', $seatData['luxury_fare']) }}">
                     </div>
                     @error('luxury_seat_fare')<p class="form-error mt-2">{{ $message }}</p>@enderror
                 </div>
@@ -310,7 +331,7 @@
         </div>
 
         <div class="flex gap-3">
-            <x-ui.button type="submit">Create vehicle</x-ui.button>
+            <x-ui.button type="submit">Update vehicle</x-ui.button>
             <x-ui.button href="{{ route('admin.vehicles.index') }}" variant="secondary">Cancel</x-ui.button>
         </div>
     </form>
@@ -319,10 +340,10 @@
 
 @push('scripts')
 @php
-    $initialConductors = old('conductors', []);
-    $defaultSeatRows = array_map(fn () => ['left' => 2, 'right' => 2, 'left_type' => 'normal', 'right_type' => 'normal'], range(1, 10));
-    $defaultSeatRows[0] = ['left' => 1, 'right' => 1, 'left_type' => 'normal', 'right_type' => 'normal'];
-    $initialSeatRows = old('seat_rows', $defaultSeatRows);
+    $initialConductors = old('conductors', $defaultConductors);
+    $initialSeatRows = old('seat_rows', $seatData['seat_rows']);
+    $initialNormalFare = old('normal_seat_fare', $seatData['normal_fare']);
+    $initialLuxuryFare = old('luxury_seat_fare', $seatData['luxury_fare']);
 @endphp
 <script>
 function vehicleStaffForm() {
@@ -341,11 +362,13 @@ function vehicleStaffForm() {
     };
 
     return {
-        conductors: Array.isArray(oldConductors) ? oldConductors.map((c) => ({ name: c.name || '', phone: c.phone || '', cnic: c.cnic || '' })) : [],
+        conductors: Array.isArray(oldConductors)
+            ? oldConductors.map((c) => ({ id: c.id || null, name: c.name || '', phone: c.phone || '', cnic: c.cnic || '' }))
+            : [],
         seatRows: oldSeatRows.length ? oldSeatRows.map(normalizeRow) : [{ left: 1, right: 1, left_type: 'normal', right_type: 'normal' }, ...Array.from({ length: 9 }, () => ({ left: 2, right: 2, left_type: 'normal', right_type: 'normal' }))],
-        normalFare: Number(@json(old('normal_seat_fare', 2000))),
-        luxuryFare: Number(@json(old('luxury_seat_fare', 3500))),
-        addConductor() { this.conductors.push({ name: '', phone: '', cnic: '' }); },
+        normalFare: Number(@json($initialNormalFare)),
+        luxuryFare: Number(@json($initialLuxuryFare)),
+        addConductor() { this.conductors.push({ id: null, name: '', phone: '', cnic: '' }); },
         removeConductor(index) { this.conductors.splice(index, 1); },
         addSeatRow() { this.seatRows.push({ left: 2, right: 2, left_type: 'normal', right_type: 'normal' }); },
         removeSeatRow(index) { if (this.seatRows.length > 1) this.seatRows.splice(index, 1); },

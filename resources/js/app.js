@@ -3,6 +3,7 @@ import Alpine from 'alpinejs';
 import { busStandForm } from './bus-stand-form';
 import { routeForm } from './route-form';
 import { scheduleForm, scheduleDuplicateModal } from './schedule-form';
+import { searchableSelect } from './searchable-select';
 import { registerDialogStore, bssAlert, bssConfirm } from './dialog';
 
 window.Alpine = Alpine;
@@ -38,6 +39,8 @@ document.addEventListener('alpine:init', () => {
     Alpine.data('scheduleForm', (config) => scheduleForm(config));
 
     Alpine.data('scheduleDuplicateModal', () => scheduleDuplicateModal());
+
+    Alpine.data('searchableSelect', (config) => searchableSelect(config));
 });
 
 Alpine.start();

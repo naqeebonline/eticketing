@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Admin;
 use App\Contracts\Repositories\ScheduleRepositoryInterface;
 use App\Enums\BookingStatus;
 use App\Http\Controllers\Controller;
+use App\Models\Route;
 use App\Models\Schedule;
+use App\Models\Vehicle;
 use App\Models\WeeklySchedulePlan;
 use App\Services\Schedule\ScheduleAssignmentService;
 use App\Services\Schedule\WeeklyScheduleService;
@@ -22,13 +24,34 @@ class ScheduleController extends Controller
         private WeeklyScheduleService $weeklyScheduleService,
     ) {}
 
-    public function index(): View
+    public function index(Request $request): View
     {
-        $plans = $this->weeklyScheduleService
-            ->queryForUser(auth()->user())
-            ->paginate(15);
+        $user = auth()->user();
+        $standIds = $user->manageableBusStandIds();
 
-        return view('admin.schedules.index', compact('plans'));
+        $filters = $request->only(['vehicle_id', 'route_id']);
+        $perPage = (int) $request->input('per_page', 15);
+        if (! in_array($perPage, [10, 15, 25, 50, 100], true)) {
+            $perPage = 15;
+        }
+
+        $plans = $this->weeklyScheduleService
+            ->queryForUser($user, $filters)
+            ->paginate($perPage)
+            ->withQueryString();
+
+        $vehiclesQuery = Vehicle::query()->where('is_active', true)->orderBy('name');
+        $routesQuery = Route::query()->where('is_active', true)->orderBy('name');
+
+        if ($standIds !== null) {
+            $vehiclesQuery->whereIn('bus_stand_id', $standIds);
+            $routesQuery->whereIn('bus_stand_id', $standIds);
+        }
+
+        $vehicles = $vehiclesQuery->get(['id', 'name', 'bus_number']);
+        $routes = $routesQuery->get(['id', 'name', 'departure_city', 'destination_city']);
+
+        return view('admin.schedules.index', compact('plans', 'vehicles', 'routes', 'filters', 'perPage'));
     }
 
     public function create(): View

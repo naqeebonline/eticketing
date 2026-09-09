@@ -93,10 +93,29 @@
 
         <x-ui.form-section
             title="Weekly timetable"
-            description="Har weekday ke saamne time daalein. Jis din bus nahi chalti — khali chhor dein (3, 4 ya 7 din — aap decide karein)."
+            description="Har weekday ke saamne time daalein. Jis din bus nahi chalti — khali chhor dein. Same time wale dinon ke liye neeche copy tools use karein."
             icon="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
         >
             @error('weekdays')<p class="mb-4 form-error">{{ $message }}</p>@enderror
+
+            <div class="mb-4 flex flex-wrap items-end gap-3 rounded-xl border border-slate-200 bg-slate-50/80 p-3 dark:border-slate-700 dark:bg-slate-800/40">
+                <div class="min-w-[8rem]">
+                    <label class="form-label">Copy from</label>
+                    <select class="input-field" x-model="copyFromDay">
+                        <option value="">— Select day —</option>
+                        <template x-for="day in filledDayOptions" :key="'copy-from-' + day.value">
+                            <option :value="String(day.value)" x-text="day.label + ' · ' + weekdays[day.value].departure_time"></option>
+                        </template>
+                    </select>
+                </div>
+                <div class="flex flex-wrap gap-2 pb-0.5">
+                    <button type="button" class="btn-ghost btn-sm" :disabled="!copyFromDay" @click="copyToNextFromSelected()">Next day</button>
+                    <button type="button" class="btn-ghost btn-sm" :disabled="!copyFromDay" @click="copyToEmptyDays()">Empty days</button>
+                    <button type="button" class="btn-ghost btn-sm" :disabled="!copyFromDay" @click="copyToWeekdays()">Mon–Fri</button>
+                    <button type="button" class="btn-ghost btn-sm" :disabled="!copyFromDay" @click="copyToAllDays()">All 7 days</button>
+                    <button type="button" class="btn-ghost btn-sm text-red-600 hover:text-red-700" @click="clearAllDays()" x-show="activeDayCount > 0">Clear all</button>
+                </div>
+            </div>
 
             <div class="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700">
                 <table class="w-full text-sm">
@@ -105,7 +124,7 @@
                             <th class="px-4 py-3">Day</th>
                             <th class="px-4 py-3">Departure</th>
                             <th class="px-4 py-3">Arrival</th>
-                            <th class="px-4 py-3 w-16"></th>
+                            <th class="px-4 py-3 text-right">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
@@ -129,8 +148,15 @@
                                         x-model="weekdays[day.value].arrival_time"
                                     >
                                 </td>
-                                <td class="px-4 py-3 text-right">
-                                    <button type="button" class="text-xs font-semibold text-slate-500 hover:text-red-600" @click="clearDay(day.value)" x-show="weekdays[day.value]?.departure_time">Clear</button>
+                                <td class="px-4 py-3">
+                                    <div class="flex justify-end gap-3" x-show="weekdays[day.value]?.departure_time">
+                                        <button type="button" class="text-xs font-semibold text-primary-600 hover:text-primary-700" @click="copyDayToNext(day.value)">
+                                            Copy → next
+                                        </button>
+                                        <button type="button" class="text-xs font-semibold text-slate-500 hover:text-red-600" @click="clearDay(day.value)">
+                                            Clear
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                         </template>

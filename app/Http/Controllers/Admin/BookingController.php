@@ -42,15 +42,27 @@ class BookingController extends Controller
             'search',
             'vehicle_id',
             'route_id',
-            'departure_date',
         ]);
 
         if ($standIds !== null) {
             $filters['bus_stand_ids'] = $standIds;
         }
 
-        if (empty($filters['departure_date']) && ! request()->hasAny(['status', 'payment_status', 'search', 'vehicle_id', 'route_id'])) {
-            $filters['departure_date'] = today()->toDateString();
+        $dateFrom = request('date_from');
+        $dateTo = request('date_to');
+        $hasDateRange = filled($dateFrom) || filled($dateTo);
+
+        if ($hasDateRange) {
+            // Custom / archive range on trip departure dates
+            if (filled($dateFrom)) {
+                $filters['departure_from'] = $dateFrom;
+            }
+            if (filled($dateTo)) {
+                $filters['departure_to'] = $dateTo;
+            }
+        } else {
+            // Default: today + upcoming only (past trips stay archived)
+            $filters['upcoming_only'] = true;
         }
 
         $bookings = $this->bookingRepository->paginate($filters);
@@ -65,25 +77,76 @@ class BookingController extends Controller
 
         $vehicles = $vehiclesQuery->get(['id', 'name', 'bus_number']);
         $routes = $routesQuery->get(['id', 'name', 'departure_city', 'destination_city']);
+        $showingArchive = $hasDateRange;
 
-        return view('admin.bookings.index', compact('bookings', 'vehicles', 'routes', 'filters'));
+        return view('admin.bookings.index', compact(
+            'bookings',
+            'vehicles',
+            'routes',
+            'filters',
+            'showingArchive',
+            'dateFrom',
+            'dateTo',
+        ));
     }
 
     public function create(): View
     {
         $standIds = auth()->user()->manageableBusStandIds() ?? [];
         $date = request('date', today()->toDateString());
+        $routeId = request('route_id');
+        $vehicleId = request('vehicle_id');
+        $timeFrom = request('time_from');
+        $timeTo = request('time_to');
 
-        $schedules = Schedule::query()
+        $schedulesQuery = Schedule::query()
             ->with(['route', 'vehicle'])
             ->whereHas('route', fn ($q) => $q->whereIn('bus_stand_id', $standIds))
             ->where('departure_date', $date)
-            ->bookable()
+            ->bookable();
+
+        if (filled($routeId)) {
+            $schedulesQuery->where('route_id', (int) $routeId);
+        }
+
+        if (filled($vehicleId)) {
+            $schedulesQuery->where('vehicle_id', (int) $vehicleId);
+        }
+
+        if (filled($timeFrom)) {
+            $schedulesQuery->whereTime('departure_time', '>=', $this->normalizeFilterTime($timeFrom));
+        }
+
+        if (filled($timeTo)) {
+            $schedulesQuery->whereTime('departure_time', '<=', $this->normalizeFilterTime($timeTo));
+        }
+
+        $schedules = $schedulesQuery
             ->orderBy('departure_time')
             ->paginate(15)
             ->withQueryString();
 
-        return view('admin.bookings.create', compact('schedules', 'date'));
+        $vehiclesQuery = Vehicle::query()->where('is_active', true)->orderBy('name');
+        $routesQuery = Route::query()->where('is_active', true)->orderBy('name');
+
+        if ($standIds !== []) {
+            $vehiclesQuery->whereIn('bus_stand_id', $standIds);
+            $routesQuery->whereIn('bus_stand_id', $standIds);
+        }
+
+        $vehicles = $vehiclesQuery->get(['id', 'name', 'bus_number']);
+        $routes = $routesQuery->get(['id', 'name', 'departure_city', 'destination_city']);
+
+        return view('admin.bookings.create', compact(
+            'schedules',
+            'date',
+            'vehicles',
+            'routes',
+            'routeId',
+            'vehicleId',
+            'timeFrom',
+            'timeTo',
+        ));
     }
 
     public function seats(Schedule $schedule): View|RedirectResponse
@@ -375,6 +438,17 @@ class BookingController extends Controller
         $schedule->loadMissing('route');
         $standId = $schedule->route?->bus_stand_id;
         abort_unless($standId && auth()->user()->ownsBusStand($standId), 403);
+    }
+
+    private function normalizeFilterTime(?string $time): string
+    {
+        $time = trim((string) $time);
+
+        if (preg_match('/^\d{2}:\d{2}$/', $time)) {
+            return $time.':00';
+        }
+
+        return $time;
     }
 
     private function rejectIfNotBookable(Schedule $schedule): ?RedirectResponse

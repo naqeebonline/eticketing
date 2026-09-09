@@ -11,11 +11,49 @@
 </x-ui.page-header>
 
 <div class="admin-panel admin-table">
+    @php
+        $vehicleOptions = $vehicles->map(fn ($vehicle) => [
+            'value' => (string) $vehicle->id,
+            'label' => $vehicle->bus_number
+                ? "{$vehicle->name} · {$vehicle->bus_number}"
+                : $vehicle->name,
+        ])->values()->all();
+
+        $routeOptions = $routes->map(fn ($route) => [
+            'value' => (string) $route->id,
+            'label' => "{$route->departure_city} → {$route->destination_city}",
+        ])->values()->all();
+    @endphp
+
     <x-admin.filter-bar>
         <div>
             <label class="form-label">Departure date</label>
             <input type="date" name="date" value="{{ $date }}" class="input-field" min="{{ today()->format('Y-m-d') }}">
         </div>
+        <div>
+            <label class="form-label">From time</label>
+            <input type="time" name="time_from" value="{{ $timeFrom ?? '' }}" class="input-field">
+        </div>
+        <div>
+            <label class="form-label">To time</label>
+            <input type="time" name="time_to" value="{{ $timeTo ?? '' }}" class="input-field">
+        </div>
+
+        <x-ui.searchable-select
+            name="route_id"
+            label="Route"
+            placeholder="All routes"
+            :options="$routeOptions"
+            :value="(string) ($routeId ?? '')"
+        />
+
+        <x-ui.searchable-select
+            name="vehicle_id"
+            label="Bus / Vehicle"
+            placeholder="All buses"
+            :options="$vehicleOptions"
+            :value="(string) ($vehicleId ?? '')"
+        />
     </x-admin.filter-bar>
 
     <div class="table-wrap border-0 rounded-none shadow-none">
@@ -54,7 +92,7 @@
                 </tr>
                 @empty
                 <tr><td colspan="7">
-                    <x-ui.empty-state title="No departures available" description="Create a schedule with available seats first.">
+                    <x-ui.empty-state title="No departures available" description="Filters change karein ya schedule with available seats create karein.">
                         <x-slot:action><x-ui.button href="{{ route('admin.schedules.create') }}">Add schedule</x-ui.button></x-slot:action>
                     </x-ui.empty-state>
                 </td></tr>
